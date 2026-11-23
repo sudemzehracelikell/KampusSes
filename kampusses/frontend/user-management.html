@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kullanıcılar - KampüsSes</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        table.users { width: 100%; border-collapse: collapse; }
+        table.users th, table.users td { text-align: left; padding: var(--space-md); border-bottom: 1px solid var(--glass-border); }
+        table.users th { color: var(--color-text-muted); font-weight: 600; }
+        .table-wrap { overflow-x: auto; }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container navbar-container">
+            <a href="index.html" class="navbar-brand">KampüsSes</a>
+            <ul class="navbar-menu" id="navbarMenu"></ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: var(--space-2xl); padding-bottom: var(--space-3xl);">
+        <h1>Kullanıcılar</h1>
+        <p class="text-secondary" style="margin-bottom: var(--space-xl);">Yeni kayıtlar Öğrenci rolüyle açılır. Birim Sorumlusu yaptığınız kullanıcıyı <a href="admin.html">Yönetim</a> sayfasından bir birime ekleyin.</p>
+
+        <div class="glass-card">
+            <input id="search" class="form-input" placeholder="Ad veya e-posta ile ara" style="max-width: 360px; margin-bottom: var(--space-lg);">
+            <div class="table-wrap">
+                <table class="users">
+                    <thead><tr><th>Kullanıcı</th><th>E-posta</th><th>Rol</th><th>Kayıt</th><th></th></tr></thead>
+                    <tbody id="userRows"><tr><td colspan="5"><div class="spinner"></div></td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+    <script src="components.js"></script>
+    <script>
+        const rows = document.getElementById('userRows');
+
+        async function load(search = '') {
+            try {
+                const users = await api.getUsers(search);
+                rows.innerHTML = users.map(u => {
+                    const isMe = u.id === auth.currentUser.id;
+                    return `
+                    <tr>
+                        <td><strong>${escapeHtml(u.username)}</strong>${isMe ? ' <span class="badge">siz</span>' : ''}</td>
+                        <td class="text-secondary">${escapeHtml(u.email)}</td>
+                        <td>
+                            <select class="form-select" ${isMe ? 'disabled' : ''} onchange="changeRole(${u.id}, this)" data-current="${u.role}">
+                                ${Object.entries(ROLE_LABELS).map(([value, label]) => `<option value="${value}" ${value === u.role ? 'selected' : ''}>${label}</option>`).join('')}
+                            </select>
+                        </td>
+                        <td class="text-muted">${new Date(u.date_joined).toLocaleDateString('tr-TR')}</td>
+                        <td>${isMe ? '' : `<button class="btn btn-ghost btn-sm" style="color: var(--color-error);" data-name="${escapeHtml(u.username)}" onclick="removeUser(${u.id}, this.dataset.name)">Sil</button>`}</td>
+                    </tr>`;
+                }).join('') || '<tr><td colspan="5" class="text-muted">Kullanıcı bulunamadı.</td></tr>';
+            } catch (error) {
+                rows.innerHTML = `<tr><td colspan="5" style="color: var(--color-error);">${escapeHtml(error.message)}</td></tr>`;
+            }
+        }
+
+        async function changeRole(id, select) {
+            const role = select.value;
+            const result = await withLoading(() => api.updateUserRole(id, role), 'Rol güncellenemedi');
+            if (result) {
+                select.dataset.current = role;
+                showToast(`Rol "${getRoleName(role)}" olarak güncellendi.`, 'success');
+            } else {
+                select.value = select.dataset.current;
+            }
+        }
+
+        async function removeUser(id, name) {
+            if (!confirm(`${name} kullanıcısı ve tüm bildirimleri silinsin mi?`)) return;
+            await withLoading(async () => { await api.deleteUser(id); showToast('Kullanıcı silindi.', 'success'); await load(); }, 'Kullanıcı silinemedi');
+        }
+
+        document.getElementById('search').addEventListener('input', debounce(e => load(e.target.value.trim()), 300));
+        if (auth.requireRole(ROLES.ADMIN)) load();
+    </script>
+</body>
+
+</html>

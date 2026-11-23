@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panelim - KampüsSes</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container navbar-container">
+            <a href="index.html" class="navbar-brand">KampüsSes</a>
+            <ul class="navbar-menu" id="navbarMenu"></ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: var(--space-2xl); padding-bottom: var(--space-3xl);">
+        <div class="glass-card" style="margin-bottom: var(--space-2xl);">
+            <h1 id="welcomeMessage">Panelim</h1>
+            <p class="text-secondary" id="roleLine"></p>
+            <div class="flex gap-md" style="flex-wrap: wrap; margin-top: var(--space-lg);" id="quickActions"></div>
+        </div>
+
+        <section id="roleSection" class="hidden" style="margin-bottom: var(--space-2xl);">
+            <div class="flex justify-between items-center" style="margin-bottom: var(--space-lg);">
+                <h2 id="roleSectionTitle"></h2>
+                <a id="roleSectionLink" class="btn btn-ghost btn-sm">Tümünü Gör →</a>
+            </div>
+            <div class="grid grid-cols-3" id="roleReports"></div>
+        </section>
+
+        <section>
+            <div class="flex justify-between items-center" style="margin-bottom: var(--space-lg);">
+                <h2>Bildirimlerim</h2>
+                <a href="reports.html?mine=1" class="btn btn-ghost btn-sm">Tümünü Gör →</a>
+            </div>
+            <div class="grid grid-cols-3" id="myReports">
+                <div class="glass-card"><div class="spinner" style="margin: var(--space-xl) auto;"></div></div>
+            </div>
+        </section>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+    <script src="components.js"></script>
+    <script>
+        const el = id => document.getElementById(id);
+
+        async function init() {
+            if (!auth.requireAuth()) return;
+            // Rol Admin tarafından değiştirilmiş olabilir; güncel bilgiyi sunucudan al.
+            try { auth.updateUser(await api.me()); updateNavigation(); } catch { return; }
+
+            const user = auth.currentUser;
+            el('welcomeMessage').textContent = `Hoş geldiniz, ${user.username}!`;
+            el('roleLine').textContent = `Rolünüz: ${getRoleName(user.role)}`;
+
+            const actions = [['report-form.html', '📣 Sorun Bildir', 'btn-primary'], ['reports.html', '🔍 Bildirimleri Gör', 'btn-outline']];
+            if (auth.isUnitManager()) actions.push(['unit-panel.html', '🏢 Birim Paneli', 'btn-outline']);
+            if (auth.isBoardMember()) actions.push(['review.html', '⚖️ Önceliklendirme', 'btn-outline']);
+            if (auth.isAdmin()) actions.push(['admin.html', '⚙️ Birim ve Kategoriler', 'btn-outline'], ['user-management.html', '👥 Kullanıcılar', 'btn-outline']);
+            el('quickActions').innerHTML = actions.map(([href, label, cls]) => `<a href="${href}" class="btn ${cls}">${label}</a>`).join('');
+
+            const roleConfig = auth.isUnitManager()
+                ? { title: 'Birimime Atanan Açık Bildirimler', link: 'unit-panel.html', params: { my_units: 'true', open: 'true', ordering: '-priority_score' } }
+                : auth.isBoardMember()
+                    ? { title: 'Değerlendirmemi Bekleyenler', link: 'review.html', params: { unassessed: 'true', open: 'true', ordering: '-support_count' } }
+                    : auth.isAdmin()
+                        ? { title: 'Henüz Birime Atanmamış Bildirimler', link: 'reports.html?status=NEW', params: { status: 'NEW' } }
+                        : null;
+
+            if (roleConfig) {
+                el('roleSection').classList.remove('hidden');
+                el('roleSectionTitle').textContent = roleConfig.title;
+                el('roleSectionLink').href = roleConfig.link;
+                loadInto('roleReports', roleConfig.params, 'Bekleyen bildirim yok 🎉');
+            }
+            loadInto('myReports', { mine: 'true' }, 'Henüz bildiriminiz yok.');
+        }
+
+        async function loadInto(containerId, params, emptyMessage) {
+            const container = el(containerId);
+            try {
+                const data = await api.getReports(params);
+                renderReportGrid(container, null, { results: data.results.slice(0, 3) }, { emptyMessage, showPriority: params.ordering === '-priority_score' });
+            } catch (error) {
+                container.innerHTML = '';
+                container.appendChild(createEmptyState('Yüklenemedi: ' + error.message, '⚠️'));
+            }
+        }
+
+        init();
+    </script>
+</body>
+
+</html>

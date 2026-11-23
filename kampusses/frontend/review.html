@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Önceliklendirme - KampüsSes</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container navbar-container">
+            <a href="index.html" class="navbar-brand">KampüsSes</a>
+            <ul class="navbar-menu" id="navbarMenu"></ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: var(--space-2xl); padding-bottom: var(--space-3xl);">
+        <h1>Önceliklendirme</h1>
+        <p class="text-secondary" style="margin-bottom: var(--space-xl);">
+            Açık bildirimleri aciliyet ve etkiye göre 1–5 arası puanlayın. Öncelik skoru = kurul puan ortalaması × 10 + destek sayısı.
+        </p>
+
+        <div class="flex gap-sm" style="margin-bottom: var(--space-xl);">
+            <button class="btn btn-primary btn-sm" data-tab="pending">Değerlendirmemi bekleyenler</button>
+            <button class="btn btn-ghost btn-sm" data-tab="ranking">Öncelik sıralaması</button>
+        </div>
+
+        <div class="grid grid-cols-3" id="reportsContainer"></div>
+        <div id="paginationContainer"></div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+    <script src="components.js"></script>
+    <script>
+        let tab = 'pending';
+        let page = 1;
+        const el = id => document.getElementById(id);
+
+        async function load() {
+            const params = tab === 'pending'
+                ? { unassessed: 'true', open: 'true', ordering: '-support_count', page }
+                : { open: 'true', ordering: '-priority_score', page };
+            try {
+                const data = await api.getReports(params);
+                renderReportGrid(el('reportsContainer'), el('paginationContainer'), data, {
+                    page, showPriority: tab === 'ranking',
+                    emptyMessage: tab === 'pending' ? 'Tüm açık bildirimleri değerlendirdiniz 🎉' : 'Açık bildirim yok.',
+                    onPageChange: p => { page = p; load(); },
+                });
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => {
+            tab = btn.dataset.tab;
+            page = 1;
+            document.querySelectorAll('[data-tab]').forEach(b => b.className = `btn btn-sm ${b === btn ? 'btn-primary' : 'btn-ghost'}`);
+            load();
+        }));
+
+        if (auth.requireRole(ROLES.BOARD_MEMBER)) load();
+    </script>
+</body>
+
+</html>

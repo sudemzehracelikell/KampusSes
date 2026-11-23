@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bildirimler - KampüsSes</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container navbar-container">
+            <a href="index.html" class="navbar-brand">KampüsSes</a>
+            <ul class="navbar-menu" id="navbarMenu"></ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: var(--space-2xl); padding-bottom: var(--space-3xl);">
+        <div class="flex justify-between items-center" style="margin-bottom: var(--space-2xl); gap: var(--space-md); flex-wrap: wrap;">
+            <div>
+                <h1 id="pageTitle">Bildirimler</h1>
+                <p class="text-secondary">Kampüste bildirilen sorunlar ve çözüm durumları</p>
+            </div>
+            <a href="report-form.html" class="btn btn-primary hidden" id="addReportBtn"><span>📣</span> Sorun Bildir</a>
+        </div>
+
+        <div class="glass-card" style="margin-bottom: var(--space-2xl);">
+            <div class="grid grid-cols-4" style="gap: var(--space-md);">
+                <div>
+                    <label class="form-label" for="searchInput">Ara</label>
+                    <input type="text" id="searchInput" class="form-input" placeholder="Başlık, açıklama veya konum">
+                </div>
+                <div>
+                    <label class="form-label" for="categoryFilter">Kategori</label>
+                    <select id="categoryFilter" class="form-select"><option value="">Tümü</option></select>
+                </div>
+                <div>
+                    <label class="form-label" for="statusFilter">Durum</label>
+                    <select id="statusFilter" class="form-select">
+                        <option value="">Tümü</option>
+                        <option value="open">Açık olanlar</option>
+                        <option value="NEW">Yeni</option>
+                        <option value="ASSIGNED">Atandı</option>
+                        <option value="IN_PROGRESS">İşlemde</option>
+                        <option value="RESOLVED">Çözüldü</option>
+                        <option value="REJECTED">Reddedildi</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label" for="sortFilter">Sırala</label>
+                    <select id="sortFilter" class="form-select">
+                        <option value="-created_at">En yeni</option>
+                        <option value="-support_count">En çok desteklenen</option>
+                        <option value="-priority_score">Öncelik skoru</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-4" style="gap: var(--space-md); margin-top: var(--space-md);">
+                <div>
+                    <label class="form-label" for="unitFilter">Birim</label>
+                    <select id="unitFilter" class="form-select"><option value="">Tümü</option></select>
+                </div>
+                <div class="hidden" id="mineWrapper" style="display: flex; align-items: flex-end;">
+                    <label class="flex items-center gap-sm"><input type="checkbox" id="mineFilter"> Yalnızca benim bildirimlerim</label>
+                </div>
+            </div>
+        </div>
+
+        <p class="text-muted" id="resultCount" style="margin-bottom: var(--space-md);"></p>
+        <div class="grid grid-cols-3" id="reportsContainer">
+            <div class="glass-card"><div class="spinner" style="margin: var(--space-xl) auto;"></div></div>
+        </div>
+        <div id="paginationContainer"></div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+    <script src="components.js"></script>
+    <script>
+        let currentPage = 1;
+        const el = id => document.getElementById(id);
+
+        if (auth.isAuthenticated()) {
+            el('addReportBtn').classList.remove('hidden');
+            el('mineWrapper').classList.remove('hidden');
+        }
+
+        // URL'den gelen ön filtreler (ör. birim kartından gelince ?unit=2)
+        const preset = { unit: getQueryParam('unit'), mine: getQueryParam('mine'), category: getQueryParam('category'), status: getQueryParam('status') };
+        if (preset.mine === '1') el('mineFilter').checked = true;
+        if (preset.status) el('statusFilter').value = preset.status;
+
+        async function loadFilters() {
+            try {
+                const [categories, units] = await Promise.all([api.getCategories(), api.getUnits()]);
+                categories.forEach(c => el('categoryFilter').add(new Option(c.name, c.id)));
+                units.forEach(u => el('unitFilter').add(new Option(u.name, u.id)));
+                if (preset.category) el('categoryFilter').value = preset.category;
+                if (preset.unit) {
+                    el('unitFilter').value = preset.unit;
+                    const unit = units.find(u => String(u.id) === preset.unit);
+                    if (unit) el('pageTitle').textContent = `${unit.name} — Bildirimler`;
+                }
+            } catch (error) {
+                showToast('Filtreler yüklenemedi: ' + error.message, 'error');
+            }
+        }
+
+        function currentParams() {
+            const status = el('statusFilter').value;
+            return {
+                search: el('searchInput').value.trim(),
+                category: el('categoryFilter').value,
+                unit: el('unitFilter').value,
+                status: status && status !== 'open' ? status : '',
+                open: status === 'open' ? 'true' : '',
+                mine: el('mineFilter').checked ? 'true' : '',
+                ordering: el('sortFilter').value,
+                page: currentPage,
+            };
+        }
+
+        async function loadReports() {
+            const container = el('reportsContainer');
+            try {
+                const data = await api.getReports(currentParams());
+                el('resultCount').textContent = `${data.count} bildirim`;
+                renderReportGrid(container, el('paginationContainer'), data, {
+                    page: currentPage,
+                    showPriority: el('sortFilter').value === '-priority_score',
+                    onPageChange: page => { currentPage = page; loadReports(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
+                });
+            } catch (error) {
+                container.innerHTML = '';
+                container.appendChild(createEmptyState('Bildirimler yüklenemedi. Backend sunucusunun çalıştığından emin olun.', '⚠️'));
+                showToast(error.message, 'error');
+            }
+        }
+
+        const refresh = () => { currentPage = 1; loadReports(); };
+        el('searchInput').addEventListener('input', debounce(refresh, 350));
+        ['categoryFilter', 'statusFilter', 'sortFilter', 'unitFilter', 'mineFilter'].forEach(id => el(id).addEventListener('change', refresh));
+
+        loadFilters().then(loadReports);
+    </script>
+</body>
+
+</html>

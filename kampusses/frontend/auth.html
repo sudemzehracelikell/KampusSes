@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş Yap / Kayıt Ol - KampüsSes</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="auth-container">
+        <div class="auth-visual">
+            <div class="auth-visual-content">
+                <h1 class="navbar-brand" style="font-size: var(--font-size-4xl);"><a href="index.html">KampüsSes</a></h1>
+                <p style="font-size: var(--font-size-xl); color: var(--color-text-secondary); margin-top: var(--space-lg);">
+                    Kampüsteki sorunları bildirin, çözülene kadar takip edin
+                </p>
+            </div>
+        </div>
+
+        <div class="auth-forms">
+            <div id="loginForm" class="auth-form-container active">
+                <div class="glass-card" style="max-width: 450px; margin: 0 auto;">
+                    <h2 style="margin-bottom: var(--space-sm);">Hoş Geldiniz</h2>
+                    <p class="text-secondary" style="margin-bottom: var(--space-2xl);">Hesabınıza giriş yapın</p>
+                    <form id="loginFormElement" novalidate>
+                        <div class="form-group">
+                            <label class="form-label" for="loginEmail">E-posta</label>
+                            <input id="loginEmail" type="email" class="form-input" name="email" required autocomplete="username" placeholder="ornek@universite.edu.tr">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="loginPassword">Parola</label>
+                            <input id="loginPassword" type="password" class="form-input" name="password" required autocomplete="current-password" placeholder="••••••••">
+                        </div>
+                        <p class="text-error" id="loginError" role="alert" style="color: var(--color-error); min-height: 1.2em;"></p>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: var(--space-md);">Giriş Yap</button>
+                    </form>
+                    <div style="text-align: center; margin-top: var(--space-xl);">
+                        <p class="text-secondary">Hesabınız yok mu?
+                            <a href="#" onclick="switchForm(event, 'register')" style="color: var(--color-primary-light); font-weight: 600;">Kayıt Olun</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="registerForm" class="auth-form-container">
+                <div class="glass-card" style="max-width: 450px; margin: 0 auto;">
+                    <h2 style="margin-bottom: var(--space-sm);">Hesap Oluştur</h2>
+                    <p class="text-secondary" style="margin-bottom: var(--space-2xl);">Yeni hesaplar Öğrenci rolüyle açılır.</p>
+                    <form id="registerFormElement" novalidate>
+                        <div class="form-group">
+                            <label class="form-label" for="regUsername">Ad / Kullanıcı Adı</label>
+                            <input id="regUsername" type="text" class="form-input" name="username" required maxlength="150" placeholder="Diğer kullanıcılar bu adı görür">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="regEmail">Üniversite E-postası</label>
+                            <input id="regEmail" type="email" class="form-input" name="email" required autocomplete="email" placeholder="ornek@universite.edu.tr">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="regPassword">Parola</label>
+                            <input id="regPassword" type="password" class="form-input" name="password" required minlength="8" autocomplete="new-password" placeholder="En az 8 karakter">
+                            <small class="text-muted">En az 8 karakter; yalnızca rakamdan oluşmamalı ve çok yaygın bir parola olmamalı.</small>
+                        </div>
+                        <p id="registerError" role="alert" style="color: var(--color-error); min-height: 1.2em;"></p>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: var(--space-md);">Kayıt Ol</button>
+                    </form>
+                    <div style="text-align: center; margin-top: var(--space-xl);">
+                        <p class="text-secondary">Zaten hesabınız var mı?
+                            <a href="#" onclick="switchForm(event, 'login')" style="color: var(--color-primary-light); font-weight: 600;">Giriş Yapın</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+    <script src="components.js"></script>
+    <script>
+        if (auth.isAuthenticated()) {
+            window.location.href = 'dashboard.html';
+        }
+
+        function switchForm(e, which) {
+            e.preventDefault();
+            document.getElementById('loginForm').classList.toggle('active', which === 'login');
+            document.getElementById('registerForm').classList.toggle('active', which === 'register');
+        }
+
+        function redirectAfterLogin() {
+            const next = getQueryParam('next');
+            // Yalnızca site içi göreli adreslere yönlendir (açık yönlendirme önlemi).
+            window.location.href = next && /^[a-z0-9-]+\.html(\?.*)?$/i.test(next) ? next : 'dashboard.html';
+        }
+
+        document.getElementById('loginFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = new FormData(e.target);
+            const errorEl = document.getElementById('loginError');
+            errorEl.textContent = '';
+            if (!form.get('email') || !form.get('password')) {
+                errorEl.textContent = 'E-posta ve parola zorunludur.';
+                return;
+            }
+            showLoading();
+            try {
+                const { token, user } = await api.login(form.get('email').trim(), form.get('password'));
+                auth.saveSession(token, user);
+                showToast(`Hoş geldiniz, ${user.username}!`, 'success');
+                setTimeout(redirectAfterLogin, 600);
+            } catch (error) {
+                errorEl.textContent = error.message;
+            } finally {
+                hideLoading();
+            }
+        });
+
+        document.getElementById('registerFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = new FormData(e.target);
+            const errorEl = document.getElementById('registerError');
+            errorEl.textContent = '';
+            const data = {
+                username: form.get('username').trim(),
+                email: form.get('email').trim(),
+                password: form.get('password'),
+            };
+            if (!data.username || !validateEmail(data.email) || data.password.length < 8) {
+                errorEl.textContent = 'Lütfen tüm alanları doldurun; parola en az 8 karakter olmalı.';
+                return;
+            }
+            showLoading();
+            try {
+                await api.register(data);
+                const { token, user } = await api.login(data.email, data.password);
+                auth.saveSession(token, user);
+                showToast('Hesabınız oluşturuldu.', 'success');
+                setTimeout(redirectAfterLogin, 600);
+            } catch (error) {
+                errorEl.textContent = error.message;
+            } finally {
+                hideLoading();
+            }
+        });
+
+        function validateEmail(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+    </script>
+
+    <style>
+        .auth-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 100vh;
+        }
+
+        .auth-visual {
+            background: var(--gradient-hero);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-2xl);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auth-visual::before {
+            content: '';
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            top: -250px;
+            right: -250px;
+        }
+
+        .auth-visual::after {
+            content: '';
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            bottom: -150px;
+            left: -150px;
+        }
+
+        .auth-visual-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+
+        .auth-forms {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-2xl);
+        }
+
+        .auth-form-container {
+            display: none;
+            width: 100%;
+            animation: fadeIn var(--transition-base);
+        }
+
+        .auth-form-container.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .auth-container {
+                grid-template-columns: 1fr;
+            }
+
+            .auth-visual {
+                display: none;
+            }
+        }
+    </style>
+</body>
+
+</html>

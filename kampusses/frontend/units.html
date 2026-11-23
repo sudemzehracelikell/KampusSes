@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birimler - KampüsSes</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container navbar-container">
+            <a href="index.html" class="navbar-brand">KampüsSes</a>
+            <ul class="navbar-menu" id="navbarMenu"></ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: var(--space-2xl); padding-bottom: var(--space-3xl);">
+        <h1>Birimler</h1>
+        <p class="text-secondary" style="margin-bottom: var(--space-2xl);">Bildirimler kategoriye göre bu birimlere iletilir.</p>
+        <div class="grid grid-cols-3" id="unitsContainer">
+            <div class="glass-card"><div class="spinner" style="margin: var(--space-xl) auto;"></div></div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+    <script src="components.js"></script>
+    <script>
+        (async () => {
+            const container = document.getElementById('unitsContainer');
+            try {
+                const units = await api.getUnits();
+                container.innerHTML = '';
+                if (!units.length) container.appendChild(createEmptyState('Henüz birim tanımlanmadı.', '🏢'));
+                units.forEach(u => container.appendChild(createUnitCard(u)));
+            } catch (error) {
+                container.innerHTML = '';
+                container.appendChild(createEmptyState('Birimler yüklenemedi: ' + error.message, '⚠️'));
+            }
+        })();
+    </script>
+</body>
+
+</html>

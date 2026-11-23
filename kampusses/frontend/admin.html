@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yönetim - KampüsSes</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-md); padding: var(--space-md) 0; border-bottom: 1px solid var(--glass-border); flex-wrap: wrap; }
+        .row:last-child { border-bottom: none; }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container navbar-container">
+            <a href="index.html" class="navbar-brand">KampüsSes</a>
+            <ul class="navbar-menu" id="navbarMenu"></ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: var(--space-2xl); padding-bottom: var(--space-3xl);">
+        <h1>Yönetim</h1>
+        <p class="text-secondary" style="margin-bottom: var(--space-2xl);">Birimleri, birim personelini ve kategorileri yönetin. Kullanıcı rolleri için <a href="user-management.html">Kullanıcılar</a> sayfasını kullanın.</p>
+
+        <div class="grid grid-cols-2" style="gap: var(--space-2xl); align-items: start;">
+            <div class="glass-card">
+                <h2 style="margin-bottom: var(--space-lg);">Birimler</h2>
+                <form id="unitForm" class="flex gap-sm" style="margin-bottom: var(--space-lg); flex-wrap: wrap;">
+                    <input name="name" class="form-input" required maxlength="100" placeholder="Birim adı" style="flex: 1; min-width: 140px;">
+                    <input name="description" class="form-input" placeholder="Açıklama" style="flex: 2; min-width: 160px;">
+                    <button class="btn btn-primary btn-sm">Ekle</button>
+                </form>
+                <div id="unitList"></div>
+            </div>
+
+            <div class="glass-card">
+                <h2 style="margin-bottom: var(--space-lg);">Kategoriler</h2>
+                <form id="categoryForm" class="flex gap-sm" style="margin-bottom: var(--space-lg); flex-wrap: wrap;">
+                    <input name="name" class="form-input" required maxlength="100" placeholder="Kategori adı" style="flex: 1; min-width: 140px;">
+                    <select name="default_unit" class="form-select" id="categoryUnit" style="flex: 1; min-width: 140px;">
+                        <option value="">Varsayılan birim yok</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm">Ekle</button>
+                </form>
+                <div id="categoryList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+    <script src="components.js"></script>
+    <script>
+        let units = [];
+        let managers = [];
+        const el = id => document.getElementById(id);
+
+        async function load() {
+            try {
+                const [u, c, users] = await Promise.all([api.getUnits(), api.getCategories(), api.getUsers()]);
+                units = u;
+                managers = users.filter(x => x.role === ROLES.UNIT_MANAGER);
+                renderUnits();
+                renderCategories(c);
+            } catch (error) {
+                showToast('Veriler yüklenemedi: ' + error.message, 'error');
+            }
+        }
+
+        function renderUnits() {
+            el('unitList').innerHTML = units.map(u => `
+                <div class="row">
+                    <div style="flex: 1; min-width: 180px;">
+                        <strong>${escapeHtml(u.name)}</strong> <span class="text-muted">· ${u.open_report_count} açık bildirim</span>
+                        <div class="flex gap-sm" style="flex-wrap: wrap; margin-top: var(--space-xs);">
+                            ${u.members.map(m => `<span class="badge badge-primary">${escapeHtml(m.username)}
+                                <a href="#" onclick="removeMember(event, ${u.id}, ${m.id})" title="Birimden çıkar" style="margin-left: 4px;">✕</a></span>`).join('') || '<span class="text-muted">Personel yok</span>'}
+                        </div>
+                    </div>
+                    <div class="flex gap-sm">
+                        <select class="form-select" id="addMember-${u.id}" style="max-width: 170px;">
+                            <option value="">Personel ekle…</option>
+                            ${managers.filter(m => !u.members.some(x => x.id === m.id)).map(m => `<option value="${m.id}">${escapeHtml(m.username)}</option>`).join('')}
+                        </select>
+                        <button class="btn btn-outline btn-sm" onclick="addMember(${u.id})">Ekle</button>
+                        <button class="btn btn-ghost btn-sm" style="color: var(--color-error);" onclick="deleteUnit(${u.id})">Sil</button>
+                    </div>
+                </div>`).join('') || '<p class="text-muted">Birim yok.</p>';
+
+            const select = el('categoryUnit');
+            select.length = 1;
+            units.forEach(u => select.add(new Option(u.name, u.id)));
+        }
+
+        function renderCategories(categories) {
+            el('categoryList').innerHTML = categories.map(c => `
+                <div class="row">
+                    <div>
+                        <strong>${escapeHtml(c.name)}</strong>
+                        <div class="text-muted" style="font-size: var(--font-size-sm);">→ ${escapeHtml(c.default_unit_name || 'Varsayılan birim yok')}</div>
+                    </div>
+                    <div class="flex gap-sm">
+                        <select class="form-select" onchange="setDefaultUnit(${c.id}, this.value)" style="max-width: 170px;">
+                            <option value="">Birim yok</option>
+                            ${units.map(u => `<option value="${u.id}" ${u.id === c.default_unit ? 'selected' : ''}>${escapeHtml(u.name)}</option>`).join('')}
+                        </select>
+                        <button class="btn btn-ghost btn-sm" style="color: var(--color-error);" onclick="deleteCategory(${c.id})">Sil</button>
+                    </div>
+                </div>`).join('') || '<p class="text-muted">Kategori yok.</p>';
+        }
+
+        el('unitForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            const f = new FormData(e.target);
+            await withLoading(async () => {
+                await api.createUnit({ name: f.get('name').trim(), description: f.get('description').trim() });
+                e.target.reset();
+                showToast('Birim eklendi.', 'success');
+                await load();
+            }, 'Birim eklenemedi');
+        });
+
+        el('categoryForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            const f = new FormData(e.target);
+            await withLoading(async () => {
+                await api.createCategory({ name: f.get('name').trim(), default_unit: f.get('default_unit') || null });
+                e.target.reset();
+                showToast('Kategori eklendi.', 'success');
+                await load();
+            }, 'Kategori eklenemedi');
+        });
+
+        async function addMember(unitId) {
+            const userId = el(`addMember-${unitId}`).value;
+            if (!userId) return showToast('Önce bir Birim Sorumlusu seçin.', 'warning');
+            await withLoading(async () => { await api.addUnitMember(unitId, Number(userId)); await load(); }, 'Personel eklenemedi');
+        }
+
+        async function removeMember(e, unitId, userId) {
+            e.preventDefault();
+            await withLoading(async () => { await api.removeUnitMember(unitId, userId); await load(); }, 'Personel çıkarılamadı');
+        }
+
+        async function deleteUnit(id) {
+            if (!confirm('Birim silinsin mi? Bu birime atanmış bildirimler atanmamış duruma düşer.')) return;
+            await withLoading(async () => { await api.deleteUnit(id); showToast('Birim silindi.', 'success'); await load(); }, 'Birim silinemedi');
+        }
+
+        async function setDefaultUnit(categoryId, unitId) {
+            await withLoading(async () => { await api.updateCategory(categoryId, { default_unit: unitId || null }); await load(); }, 'Kategori güncellenemedi');
+        }
+
+        async function deleteCategory(id) {
+            if (!confirm('Kategori silinsin mi?')) return;
+            await withLoading(async () => { await api.deleteCategory(id); showToast('Kategori silindi.', 'success'); await load(); }, 'Kategori silinemedi');
+        }
+
+        if (auth.requireRole(ROLES.ADMIN)) load();
+    </script>
+</body>
+
+</html>

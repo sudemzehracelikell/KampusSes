@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birim Paneli - KampüsSes</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container navbar-container">
+            <a href="index.html" class="navbar-brand">KampüsSes</a>
+            <ul class="navbar-menu" id="navbarMenu"></ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: var(--space-2xl); padding-bottom: var(--space-3xl);">
+        <h1>Birim Paneli</h1>
+        <p class="text-secondary" id="unitNames" style="margin-bottom: var(--space-xl);"></p>
+
+        <div class="glass-card" style="margin-bottom: var(--space-2xl);">
+            <div class="grid grid-cols-3" style="gap: var(--space-md);">
+                <div>
+                    <label class="form-label" for="statusFilter">Durum</label>
+                    <select id="statusFilter" class="form-select">
+                        <option value="open">Açık olanlar</option>
+                        <option value="ASSIGNED">Atandı (işlem bekliyor)</option>
+                        <option value="IN_PROGRESS">İşlemde</option>
+                        <option value="closed">Kapananlar</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label" for="sortFilter">Sırala</label>
+                    <select id="sortFilter" class="form-select">
+                        <option value="-priority_score">Öncelik skoru (kurul + destek)</option>
+                        <option value="-support_count">Destek sayısı</option>
+                        <option value="-created_at">En yeni</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3" id="reportsContainer"></div>
+        <div id="paginationContainer"></div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+    <script src="components.js"></script>
+    <script>
+        let page = 1;
+        const el = id => document.getElementById(id);
+
+        async function init() {
+            if (!auth.requireRole(ROLES.UNIT_MANAGER)) return;
+            try {
+                const [me, units] = await Promise.all([api.me(), api.getUnits()]);
+                const mine = units.filter(u => me.unit_ids.includes(u.id)).map(u => u.name);
+                el('unitNames').textContent = mine.length
+                    ? `Sorumlu olduğunuz birim(ler): ${mine.join(', ')}`
+                    : 'Henüz bir birime eklenmediniz. Admin sizi birime eklediğinde bildirimler burada görünecek.';
+            } catch { /* bilgi satırı kritik değil */ }
+            load();
+        }
+
+        async function load() {
+            const status = el('statusFilter').value;
+            const params = {
+                my_units: 'true',
+                ordering: el('sortFilter').value,
+                page,
+                open: status === 'open' ? 'true' : status === 'closed' ? 'false' : '',
+                status: ['ASSIGNED', 'IN_PROGRESS'].includes(status) ? status : '',
+            };
+            try {
+                const data = await api.getReports(params);
+                renderReportGrid(el('reportsContainer'), el('paginationContainer'), data, {
+                    page, showPriority: true, emptyMessage: 'Bu filtrede bildirim yok.',
+                    onPageChange: p => { page = p; load(); },
+                });
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        ['statusFilter', 'sortFilter'].forEach(id => el(id).addEventListener('change', () => { page = 1; load(); }));
+        init();
+    </script>
+</body>
+
+</html>

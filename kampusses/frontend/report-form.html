@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorun Bildir - KampüsSes</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container navbar-container">
+            <a href="index.html" class="navbar-brand">KampüsSes</a>
+            <ul class="navbar-menu" id="navbarMenu"></ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: var(--space-2xl); padding-bottom: var(--space-3xl); max-width: 860px;">
+        <h1 id="formTitle">Sorun Bildir</h1>
+        <p class="text-secondary" style="margin-bottom: var(--space-2xl);">Bildiriminiz kategoriye göre ilgili birime otomatik iletilir.</p>
+
+        <div id="similarBox" class="glass-card hidden" style="margin-bottom: var(--space-xl); border-left: 4px solid var(--color-warning);">
+            <h3 style="margin-bottom: var(--space-sm);">Bu sorun daha önce bildirilmiş olabilir</h3>
+            <p class="text-secondary" style="margin-bottom: var(--space-md);">Aynı sorunsa yeni bildirim yerine mevcut bildirime destek vermeniz çözümü hızlandırır.</p>
+            <div id="similarList"></div>
+        </div>
+
+        <form id="reportForm" class="glass-card" novalidate>
+            <div class="form-group">
+                <label class="form-label" for="title">Başlık *</label>
+                <input id="title" name="title" class="form-input" required minlength="5" maxlength="150" placeholder="Örn: B Blok 3. kat Wi-Fi sürekli kopuyor">
+            </div>
+            <div class="grid grid-cols-2" style="gap: var(--space-md);">
+                <div class="form-group">
+                    <label class="form-label" for="category">Kategori *</label>
+                    <select id="category" name="category" class="form-select" required>
+                        <option value="">Seçin</option>
+                    </select>
+                    <small class="text-muted" id="unitHint"></small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="location">Konum *</label>
+                    <input id="location" name="location" class="form-input" required maxlength="150" placeholder="Bina / kat / oda">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="description">Açıklama *</label>
+                <textarea id="description" name="description" class="form-textarea" required minlength="10" placeholder="Sorunu, ne zamandır sürdüğünü ve nasıl etkilendiğinizi anlatın"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="tags">Etiketler</label>
+                <input id="tags" name="tags" class="form-input" placeholder="virgülle ayırın: wifi, eduroam (en fazla 5)">
+            </div>
+            <div class="form-group" id="fileGroup">
+                <label class="form-label" for="files">Fotoğraf / belge</label>
+                <input id="files" name="files" type="file" class="form-input" multiple accept=".jpg,.jpeg,.png,.webp,.pdf">
+                <small class="text-muted">En fazla 3 dosya, her biri en fazla 5 MB (JPG, PNG, WEBP, PDF).</small>
+                <div id="existingMedia" class="flex gap-sm" style="flex-wrap: wrap; margin-top: var(--space-sm);"></div>
+            </div>
+            <p id="formError" role="alert" style="color: var(--color-error); min-height: 1.2em;"></p>
+            <div class="flex gap-md">
+                <button type="submit" class="btn btn-primary" id="submitBtn">Bildir</button>
+                <a href="reports.html" class="btn btn-ghost">Vazgeç</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+    <script src="components.js"></script>
+    <script>
+        auth.requireAuth();
+        const el = id => document.getElementById(id);
+        const reportId = getQueryParam('id');
+        let categories = [];
+        let existingMediaCount = 0;
+
+        const ALLOWED_EXT = ['jpg', 'jpeg', 'png', 'webp', 'pdf'];
+        const MAX_SIZE = 5 * 1024 * 1024;
+
+        async function init() {
+            try {
+                categories = await api.getCategories();
+                categories.forEach(c => el('category').add(new Option(c.name, c.id)));
+                if (reportId) await loadExisting();
+            } catch (error) {
+                showToast('Form yüklenemedi: ' + error.message, 'error');
+            }
+        }
+
+        async function loadExisting() {
+            el('formTitle').textContent = 'Bildirimi Düzenle';
+            el('submitBtn').textContent = 'Kaydet';
+            const r = await api.getReport(reportId);
+            if (!r.permissions.can_edit) {
+                showToast('Bu bildirim artık düzenlenemez.', 'warning');
+                window.location.href = `report-detail.html?id=${reportId}`;
+                return;
+            }
+            el('title').value = r.title;
+            el('category').value = r.category.id;
+            el('location').value = r.location;
+            el('description').value = r.description;
+            el('tags').value = r.tags.map(t => t.name).join(', ');
+            existingMediaCount = r.media.length;
+            el('existingMedia').innerHTML = r.media.map(m =>
+                `<span class="badge">📎 ${escapeHtml(m.file.split('/').pop())}</span>`).join('');
+            updateUnitHint();
+        }
+
+        function updateUnitHint() {
+            const c = categories.find(c => String(c.id) === el('category').value);
+            el('unitHint').textContent = c ? (c.default_unit_name ? `Bu kategori ${c.default_unit_name} birimine iletilir.` : 'Bu kategori için varsayılan birim yok; Admin atama yapacak.') : '';
+        }
+
+        // FR-05: benzer açık bildirimleri göster
+        const checkSimilar = debounce(async () => {
+            const category = el('category').value;
+            const location = el('location').value.trim();
+            if (!category || location.length < 3) { el('similarBox').classList.add('hidden'); return; }
+            try {
+                const similar = await api.getSimilarReports(category, location, reportId);
+                el('similarBox').classList.toggle('hidden', similar.length === 0);
+                el('similarList').innerHTML = similar.map(r => `
+                    <div class="flex justify-between items-center" style="padding: var(--space-sm) 0; border-bottom: 1px solid var(--glass-border); gap: var(--space-md);">
+                        <div>
+                            <strong>${escapeHtml(r.title)}</strong>
+                            <div class="text-muted" style="font-size: var(--font-size-sm);">📍 ${escapeHtml(r.location)} · 🙋 ${r.support_count} destek · ${escapeHtml(r.status_display)}</div>
+                        </div>
+                        <a class="btn btn-outline btn-sm" href="report-detail.html?id=${r.id}">Gör ve Destekle</a>
+                    </div>`).join('');
+            } catch { /* benzer bildirim kontrolü kritik değil */ }
+        }, 400);
+
+        el('category').addEventListener('change', () => { updateUnitHint(); checkSimilar(); });
+        el('location').addEventListener('input', checkSimilar);
+
+        function validateFiles(files) {
+            if (files.length + existingMediaCount > 3) return 'Bir bildirime en fazla 3 dosya eklenebilir.';
+            for (const f of files) {
+                const ext = f.name.split('.').pop().toLowerCase();
+                if (!ALLOWED_EXT.includes(ext)) return `${f.name}: desteklenmeyen dosya türü.`;
+                if (f.size > MAX_SIZE) return `${f.name}: 5 MB'tan büyük.`;
+            }
+            return '';
+        }
+
+        el('reportForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorEl = el('formError');
+            errorEl.textContent = '';
+            const data = {
+                title: el('title').value.trim(),
+                category: el('category').value,
+                location: el('location').value.trim(),
+                description: el('description').value.trim(),
+                tags: el('tags').value.split(',').map(t => t.trim()).filter(Boolean),
+            };
+            if (data.title.length < 5 || !data.category || !data.location || data.description.length < 10) {
+                errorEl.textContent = 'Başlık (en az 5 karakter), kategori, konum ve açıklama (en az 10 karakter) zorunludur.';
+                return;
+            }
+            const files = Array.from(el('files').files);
+            const fileError = validateFiles(files);
+            if (fileError) { errorEl.textContent = fileError; return; }
+
+            showLoading();
+            try {
+                const report = reportId ? await api.updateReport(reportId, data) : await api.createReport(data);
+                try {
+                    for (const file of files) {
+                        await api.uploadMedia(report.id, file);
+                    }
+                } catch (uploadError) {
+                    // Bildirim kaydedildi; yalnızca dosya yüklenemedi. Kullanıcı detay sayfasından tekrar deneyebilir.
+                    showToast(`Bildirim kaydedildi ama dosya yüklenemedi: ${uploadError.message}`, 'warning', 6000);
+                }
+                showToast(reportId ? 'Bildirim güncellendi.' : `Bildiriminiz alındı. Takip numarası: #${report.id}`, 'success', 4000);
+                setTimeout(() => { window.location.href = `report-detail.html?id=${report.id}`; }, 800);
+            } catch (error) {
+                errorEl.textContent = error.message;
+            } finally {
+                hideLoading();
+            }
+        });
+
+        init();
+    </script>
+</body>
+
+</html>

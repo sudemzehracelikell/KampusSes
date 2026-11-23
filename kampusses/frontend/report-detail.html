@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bildirim Detayı - KampüsSes</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .detail-grid { display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-2xl); }
+        .media-grid { display: flex; gap: var(--space-md); flex-wrap: wrap; margin-top: var(--space-lg); }
+        .media-grid img { width: 160px; height: 120px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--glass-border); }
+        .score-row { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
+        .score-row label { flex: 1; text-align: center; }
+        @media (max-width: 900px) { .detail-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container navbar-container">
+            <a href="index.html" class="navbar-brand">KampüsSes</a>
+            <ul class="navbar-menu" id="navbarMenu"></ul>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: var(--space-2xl); padding-bottom: var(--space-3xl);">
+        <div id="reportContent"><div class="spinner" style="margin: var(--space-3xl) auto;"></div></div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+    <script src="components.js"></script>
+    <script>
+        const reportId = getQueryParam('id');
+        if (!reportId) window.location.href = 'reports.html';
+        let report = null;
+        let units = [];
+
+        async function loadReport() {
+            try {
+                report = await api.getReport(reportId);
+                render();
+                loadComments();
+            } catch (error) {
+                document.getElementById('reportContent').innerHTML =
+                    `<div class="glass-card"><p style="color: var(--color-error);">${error.status === 404 ? 'Bildirim bulunamadı.' : 'Bildirim yüklenemedi: ' + escapeHtml(error.message)}</p></div>`;
+            }
+        }
+
+        function render() {
+            const p = report.permissions;
+            const media = report.media.map(m => m.is_image
+                ? `<a href="${escapeHtml(m.file)}" target="_blank" rel="noopener"><img src="${escapeHtml(m.file)}" alt="Bildirim fotoğrafı"></a>`
+                : `<a class="btn btn-outline btn-sm" href="${escapeHtml(m.file)}" target="_blank" rel="noopener">📎 ${escapeHtml(m.file.split('/').pop())}</a>`
+            ).join('');
+
+            document.getElementById('reportContent').innerHTML = `
+                <div class="flex justify-between items-start" style="margin-bottom: var(--space-2xl); gap: var(--space-md); flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 260px;">
+                        <div class="flex gap-md" style="margin-bottom: var(--space-md); flex-wrap: wrap;">
+                            ${statusBadge(report.status, report.status_display)}
+                            <span class="badge badge-primary">${escapeHtml(report.category.name)}</span>
+                            <span class="badge">#${report.id}</span>
+                        </div>
+                        <h1>${escapeHtml(report.title)}</h1>
+                        <p class="text-secondary">📍 ${escapeHtml(report.location)} · ${escapeHtml(report.created_by.username)} · ${formatDate(report.created_at)}</p>
+                    </div>
+                    <div class="flex gap-sm items-center" style="white-space: nowrap;">
+                        ${p.can_edit ? `<a href="report-form.html?id=${report.id}" class="btn btn-outline btn-sm">✏️ Düzenle</a>` : ''}
+                        ${p.can_delete ? `<button onclick="deleteReport()" class="btn btn-ghost btn-sm" style="color: var(--color-error);">🗑️ ${auth.isAdmin() && report.created_by.id !== auth.currentUser.id ? 'Kaldır' : 'Geri Çek'}</button>` : ''}
+                    </div>
+                </div>
+
+                <div class="detail-grid">
+                    <div>
+                        <div class="glass-card" style="margin-bottom: var(--space-xl);">
+                            <h2 style="margin-bottom: var(--space-lg);">Açıklama</h2>
+                            <p style="white-space: pre-wrap;">${escapeHtml(report.description)}</p>
+                            ${report.tags.length ? `<div class="flex gap-sm" style="flex-wrap: wrap; margin-top: var(--space-lg);">${report.tags.map(t => `<span class="badge">#${escapeHtml(t.name)}</span>`).join('')}</div>` : ''}
+                            ${media ? `<div class="media-grid">${media}</div>` : ''}
+                        </div>
+
+                        <div class="glass-card">
+                            <h2 style="margin-bottom: var(--space-lg);">Yorumlar</h2>
+                            ${p.can_comment ? `
+                                <form id="commentForm" style="margin-bottom: var(--space-xl);">
+                                    <div class="form-group">
+                                        <textarea class="form-textarea" name="text" maxlength="1000" required placeholder="Ek bilgi veya gözleminizi yazın (en fazla 1000 karakter)"></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary btn-sm">Yorum Ekle</button>
+                                </form>`
+                : `<p class="text-secondary" style="margin-bottom: var(--space-lg);">${auth.isAuthenticated() ? 'Bu bildirim kapandığı için yorum yapılamaz.' : 'Yorum yapmak için <a href="auth.html?next=report-detail.html?id=' + report.id + '">giriş yapın</a>.'}</p>`}
+                            <div id="commentsContainer"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="glass-card" style="margin-bottom: var(--space-xl); text-align: center;">
+                            <div style="font-size: 3rem; margin-bottom: var(--space-sm);">🙋</div>
+                            <div class="stat-number" style="font-size: var(--font-size-4xl);" id="supportCount">${report.support_count}</div>
+                            <div class="stat-label" style="margin-bottom: var(--space-lg);">kişi bu sorunu yaşıyor</div>
+                            ${p.can_support ? `<button id="supportBtn" class="btn ${report.has_supported ? 'btn-outline' : 'btn-primary'}" style="width: 100%;">${report.has_supported ? 'Desteği Geri Al' : 'Ben de yaşıyorum'}</button>` : ''}
+                            ${report.board_score ? `<p class="text-muted" style="margin-top: var(--space-md);">Kurul puanı: ${report.board_score.toFixed(1)} / 5 · Öncelik: ${report.priority_score.toFixed(1)}</p>` : ''}
+                        </div>
+
+                        <div class="glass-card" style="margin-bottom: var(--space-xl);">
+                            <h3 style="margin-bottom: var(--space-sm);">Sorumlu Birim</h3>
+                            <p>${report.assigned_unit ? '🏢 ' + escapeHtml(report.assigned_unit.name) : '<span class="text-muted">Henüz atanmadı</span>'}</p>
+                        </div>
+
+                        ${p.can_manage ? manageCard(p) : ''}
+                        ${p.can_assess ? assessCard(p.my_assessment) : ''}
+
+                        <div class="glass-card">
+                            <h3 style="margin-bottom: var(--space-lg);">Durum Geçmişi</h3>
+                            <div id="timeline"></div>
+                        </div>
+                    </div>
+                </div>`;
+
+            const timeline = document.getElementById('timeline');
+            [...report.status_updates].reverse().forEach(u => timeline.appendChild(createStatusUpdateElement(u)));
+
+            document.getElementById('supportBtn')?.addEventListener('click', toggleSupport);
+            document.getElementById('commentForm')?.addEventListener('submit', addComment);
+            document.getElementById('statusForm')?.addEventListener('submit', changeStatus);
+            document.getElementById('assignForm')?.addEventListener('submit', reassign);
+            document.getElementById('assessForm')?.addEventListener('submit', saveAssessment);
+            if (p.can_manage) loadUnits();
+        }
+
+        // --- Birim personeli: durum güncelle ve yeniden ata (UC-05) ---
+        function manageCard(p) {
+            const options = p.allowed_transitions.map(s => `<option value="${s}">${STATUS_LABELS[s]}</option>`).join('');
+            return `
+                <div class="glass-card" style="margin-bottom: var(--space-xl); border-left: 4px solid var(--color-primary);">
+                    <h3 style="margin-bottom: var(--space-md);">Bildirimi Yönet</h3>
+                    ${options ? `
+                    <form id="statusForm">
+                        <div class="form-group">
+                            <label class="form-label" for="newStatus">Yeni durum</label>
+                            <select id="newStatus" class="form-select" required>${options}</select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="statusNote">Açıklama *</label>
+                            <textarea id="statusNote" class="form-textarea" required style="min-height: 80px;" placeholder="Öğrenciye iletilecek açıklama"></textarea>
+                        </div>
+                        <button class="btn btn-primary btn-sm" style="width: 100%;">Durumu Güncelle</button>
+                    </form>` : ''}
+                    <form id="assignForm" style="margin-top: var(--space-lg);">
+                        <label class="form-label" for="assignUnit">Başka birime aktar</label>
+                        <div class="flex gap-sm">
+                            <select id="assignUnit" class="form-select" required><option value="">Birim seçin</option></select>
+                            <button class="btn btn-outline btn-sm">Aktar</button>
+                        </div>
+                    </form>
+                </div>`;
+        }
+
+        // --- Kurul üyesi: önceliklendirme (UC-06) ---
+        function assessCard(mine) {
+            const radios = (name, value) => [1, 2, 3, 4, 5].map(n =>
+                `<label><input type="radio" name="${name}" value="${n}" ${value === n ? 'checked' : ''} required><br>${n}</label>`).join('');
+            return `
+                <div class="glass-card" style="margin-bottom: var(--space-xl); border-left: 4px solid var(--color-warning);">
+                    <h3 style="margin-bottom: var(--space-md);">Önceliklendir</h3>
+                    <form id="assessForm">
+                        <p class="form-label">Aciliyet (1 düşük – 5 çok acil)</p>
+                        <div class="score-row" style="margin-bottom: var(--space-md);">${radios('urgency', mine?.urgency)}</div>
+                        <p class="form-label">Etki (1 az kişi – 5 çok kişi)</p>
+                        <div class="score-row" style="margin-bottom: var(--space-md);">${radios('impact', mine?.impact)}</div>
+                        <div class="form-group">
+                            <textarea name="note" class="form-textarea" style="min-height: 60px;" maxlength="1000" placeholder="Not (isteğe bağlı)">${escapeHtml(mine?.note || '')}</textarea>
+                        </div>
+                        <button class="btn btn-primary btn-sm" style="width: 100%;">${mine ? 'Puanı Güncelle' : 'Puanı Kaydet'}</button>
+                    </form>
+                </div>`;
+        }
+
+        async function loadUnits() {
+            try {
+                units = units.length ? units : await api.getUnits();
+                const select = document.getElementById('assignUnit');
+                units.filter(u => u.id !== report.assigned_unit?.id).forEach(u => select.add(new Option(u.name, u.id)));
+            } catch { /* birim listesi yüklenemezse aktarma formu boş kalır */ }
+        }
+
+        async function loadComments() {
+            const container = document.getElementById('commentsContainer');
+            try {
+                const comments = await api.getComments(reportId);
+                container.innerHTML = '';
+                if (!comments.length) container.innerHTML = '<p class="text-secondary">Henüz yorum yok.</p>';
+                comments.forEach(c => container.appendChild(createCommentElement(c, deleteComment)));
+            } catch (error) {
+                container.innerHTML = `<p style="color: var(--color-error);">Yorumlar yüklenemedi.</p>`;
+            }
+        }
+
+        async function toggleSupport() {
+            await withLoading(async () => {
+                const res = report.has_supported ? await api.unsupport(reportId) : await api.support(reportId);
+                report.has_supported = res.has_supported;
+                report.support_count = res.support_count;
+                showToast(res.has_supported ? 'Desteğiniz eklendi.' : 'Desteğiniz geri alındı.', 'success');
+                await loadReport();
+            }, 'Destek işlemi başarısız');
+        }
+
+        async function addComment(e) {
+            e.preventDefault();
+            const text = new FormData(e.target).get('text').trim();
+            if (!text) return showToast('Yorum boş olamaz.', 'warning');
+            await withLoading(async () => {
+                await api.createComment(reportId, text);
+                e.target.reset();
+                showToast('Yorum eklendi.', 'success');
+                loadComments();
+            }, 'Yorum eklenemedi');
+        }
+
+        async function deleteComment(comment) {
+            if (!confirm('Bu yorumu silmek istiyor musunuz?')) return;
+            await withLoading(async () => {
+                await api.deleteComment(comment.id);
+                showToast('Yorum silindi.', 'success');
+                loadComments();
+            }, 'Yorum silinemedi');
+        }
+
+        async function changeStatus(e) {
+            e.preventDefault();
+            const status = document.getElementById('newStatus').value;
+            const note = document.getElementById('statusNote').value.trim();
+            if (!note) return showToast('Açıklama zorunludur.', 'warning');
+            await withLoading(async () => {
+                report = await api.changeStatus(reportId, status, note);
+                showToast(`Durum "${STATUS_LABELS[status]}" olarak güncellendi.`, 'success');
+                render();
+                loadComments();
+            }, 'Durum güncellenemedi');
+        }
+
+        async function reassign(e) {
+            e.preventDefault();
+            const unitId = document.getElementById('assignUnit').value;
+            if (!unitId) return;
+            const note = prompt('Aktarma gerekçesi (isteğe bağlı):') || '';
+            await withLoading(async () => {
+                report = await api.reassignReport(reportId, Number(unitId), note);
+                showToast('Bildirim aktarıldı.', 'success');
+                render();
+                loadComments();
+            }, 'Aktarma başarısız');
+        }
+
+        async function saveAssessment(e) {
+            e.preventDefault();
+            const form = new FormData(e.target);
+            const data = { urgency: Number(form.get('urgency')), impact: Number(form.get('impact')), note: form.get('note') || '' };
+            if (!data.urgency || !data.impact) return showToast('Aciliyet ve etki puanı seçin.', 'warning');
+            await withLoading(async () => {
+                await api.saveAssessment(reportId, data);
+                showToast('Değerlendirmeniz kaydedildi.', 'success');
+                await loadReport();
+            }, 'Değerlendirme kaydedilemedi');
+        }
+
+        async function deleteReport() {
+            const adminRemoval = auth.isAdmin() && report.created_by.id !== auth.currentUser.id;
+            if (!confirm(adminRemoval ? 'Bu bildirim uygunsuz içerik olarak gizlensin mi?' : 'Bildiriminizi geri çekmek istiyor musunuz? Bu işlem geri alınamaz.')) return;
+            await withLoading(async () => {
+                await api.deleteReport(reportId);
+                showToast(adminRemoval ? 'Bildirim kaldırıldı.' : 'Bildiriminiz geri çekildi.', 'success');
+                setTimeout(() => { window.location.href = 'reports.html'; }, 800);
+            }, 'İşlem başarısız');
+        }
+
+        loadReport();
+    </script>
+</body>
+
+</html>
