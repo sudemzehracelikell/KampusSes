@@ -1,0 +1,18 @@
+Found 76 test(s).
+System check identified no issues (0 silenced).
+Creating test database for alias 'default'...
+
+...................E-posta gönderilemedi, yeniden denenecek (bildirim #1, deneme 1)
+.....E-posta gönderilemedi, yeniden denenecek (bildirim #1, deneme 1)
+.E-posta gönderilemedi, yeniden denenecek (bildirim #1, deneme 1)
+E-posta gönderilemedi, yeniden denenecek (bildirim #1, deneme 2)
+E-posta gönderilemedi, yeniden denenecek (bildirim #1, deneme 3)
+E-posta son denemede de gönderilemedi (bildirim #1)
+...E-posta gönderilemedi, yeniden denenecek (bildirim #1, deneme 1)
+................................................
+----------------------------------------------------------------------
+Ran 76 tests in 322.763s
+
+OK
+Destroying test database for alias 'default'...
+

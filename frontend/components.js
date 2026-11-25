@@ -111,6 +111,7 @@ function createReportCard(report, { showPriority = false } = {}) {
                 <span title="Destek">🙋 ${report.support_count || 0}</span>
                 <span title="Yorum">💬 ${report.comment_count || 0}</span>
                 ${showPriority ? `<span title="Öncelik skoru">⚖️ ${Number(report.priority_score || 0).toFixed(1)}</span>` : ''}
+                ${showPriority && report.awaiting_assessment ? '<span class="badge" title="Kurul henüz puan vermedi (FR-15)">Değerlendirme bekliyor</span>' : ''}
             </div>
             <span class="text-muted" style="font-size: var(--font-size-sm);">
                 ${report.assigned_unit ? '🏢 ' + escapeHtml(report.assigned_unit.name) + ' · ' : ''}${formatDate(report.created_at)}

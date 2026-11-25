@@ -1,0 +1,43 @@
+Name                                          Stmts   Miss  Cover   Missing
+---------------------------------------------------------------------------
+accounts\__init__.py                              0      0   100%
+accounts\admin.py                                11      0   100%
+accounts\apps.py                                  3      0   100%
+accounts\models.py                               30      2    93%   30, 46
+accounts\permissions.py                          15      0   100%
+accounts\serializers.py                          45      0   100%
+accounts\views.py                                71      6    92%   64-65, 92, 105-107
+config\__init__.py                                0      0   100%
+config\settings.py                               56      5    91%   33, 88, 169-171
+config\urls.py                                   21      1    95%   39
+interactions\__init__.py                          0      0   100%
+interactions\admin.py                             9      0   100%
+interactions\apps.py                              3      0   100%
+interactions\models.py                           22      1    95%   33
+interactions\serializers.py                      21      2    90%   20, 22
+interactions\views.py                            55      1    98%   60
+prioritization\__init__.py                        0      0   100%
+prioritization\admin.py                           5      0   100%
+prioritization\apps.py                            3      0   100%
+prioritization\models.py                         16      0   100%
+prioritization\views.py                          31      5    84%   34-37, 42
+reports\__init__.py                               0      0   100%
+reports\admin.py                                 31      2    94%   48, 52
+reports\apps.py                                   3      0   100%
+reports\management\__init__.py                    0      0   100%
+reports\management\commands\__init__.py           0      0   100%
+reports\management\commands\retry_emails.py      30     11    63%   35-45
+reports\management\commands\seed_demo.py         55     55     0%   6-107
+reports\models.py                               108      5    95%   43, 55, 94, 108, 173
+reports\notifications.py                         49      0   100%
+reports\serializers.py                          106      1    99%   148
+reports\services.py                             106     10    91%   41, 70, 78, 113, 120, 152, 193, 195, 218-219
+reports\views.py                                174     12    93%   56-57, 128, 138, 230, 244-252
+units\__init__.py                                 0      0   100%
+units\admin.py                                    7      0   100%
+units\apps.py                                     3      0   100%
+units\models.py                                  13      1    92%   19
+units\serializers.py                             16      0   100%
+units\views.py                                   29      0   100%
+---------------------------------------------------------------------------
+TOTAL                                          1147    120    90%

@@ -1,0 +1,2 @@
+reports\management\commands\seed_demo.py:54:9: C901 `handle` is too complex (12 > 10)
+Found 1 error.

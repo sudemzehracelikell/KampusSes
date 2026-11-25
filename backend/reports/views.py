@@ -1,6 +1,7 @@
 import django_filters
 from django.db.models import Q
-from rest_framework import mixins, parsers, status, viewsets
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, mixins, parsers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -72,12 +73,26 @@ class ReportFilter(django_filters.FilterSet):
         return qs.exclude(assessments__reviewer=user) if value and user else qs
 
 
+class ReportOrderingFilter(filters.OrderingFilter):
+    """
+    FR-15: Öncelik skoru eşit olan bildirimlerde eski kayıt önce gelir.
+    Seçilen sıralamanın sonuna oluşturulma zamanı ve kimlik (eskiden yeniye) eklenir.
+    """
+
+    def get_ordering(self, request, queryset, view):
+        ordering = super().get_ordering(request, queryset, view)
+        if ordering and any(field.lstrip("-") == "priority_score" for field in ordering):
+            ordering = [*ordering, "created_at", "id"]
+        return ordering
+
+
 class ReportViewSet(viewsets.ModelViewSet):
     """
     Bildirimler. Okuma herkese açıktır; yazma işlemlerinin her biri kendi yetki
     kuralını uygular (sahip, birim personeli, Admin).
     """
 
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, ReportOrderingFilter]
     filterset_class = ReportFilter
     search_fields = ["title", "description", "location"]
     ordering_fields = ["created_at", "support_count", "priority_score"]
@@ -87,10 +102,18 @@ class ReportViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Report.objects.select_related("category__default_unit", "assigned_unit", "created_by").prefetch_related("tags")
         user = self.request.user
-        if not (user.is_authenticated and user.is_admin_role):
+        is_admin = user.is_authenticated and user.is_admin_role
+        if not is_admin:
             qs = qs.filter(is_removed=False)
         if self.action == "retrieve":
+            # FR-06: Geri çekilen kaydın detayı ve geçmişi yalnızca sahibine ve Admin'e açıktır.
+            if not is_admin:
+                own = Q(created_by=user) if user.is_authenticated else Q(pk__in=[])
+                qs = qs.filter(Q(is_withdrawn=False) | own)
             qs = qs.prefetch_related("media", "status_updates__user", "status_updates__unit")
+        else:
+            # FR-06: Geri çekilen kayıt listelerde görünmez ve üzerinde işlem yapılamaz.
+            qs = qs.filter(is_withdrawn=False)
         return services.with_priority(qs).distinct()
 
     def get_permissions(self):
@@ -145,12 +168,9 @@ class ReportViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         data = dict(serializer.validated_data)
         tags = data.pop("tags", None)
-        for field, value in data.items():
-            setattr(report, field, value)
-        report.save()
-        if tags is not None:
-            report.tags.set(tags)
-        return self._detail(report)
+        # Kayıt kilit altında yeniden okunur; eşzamanlı geri çekme veya durum değişikliği ezilmez.
+        report, error = self._business(services.update_report, report, request.user, tags=tags, **data)
+        return error or self._detail(report)
 
     def destroy(self, request, *args, **kwargs):
         report = self.get_object()
@@ -159,9 +179,14 @@ class ReportViewSet(viewsets.ModelViewSet):
             report.is_removed = True
             report.save(update_fields=["is_removed", "updated_at"])
             return Response(status=status.HTTP_204_NO_CONTENT)
-        self._check_owner_can_edit(report)
-        report.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        # FR-06: Geri çekme kuralı Admin'in kendi bildirimi için de aynıdır: yalnızca Yeni/Atandı.
+        if report.created_by_id != request.user.pk:
+            raise PermissionDenied("Yalnızca bildirimin sahibi bu işlemi yapabilir.")
+        if report.status not in ReportStatus.editable_by_owner():
+            raise PermissionDenied("Birim işleme başladıktan sonra bildirim geri çekilemez.")
+        # FR-06: Kayıt kalıcı silinmez; geri çekilir, durum geçmişi korunur.
+        _, error = self._business(services.withdraw_report, report, request.user)
+        return error or Response(status=status.HTTP_204_NO_CONTENT)
 
     # --- Ek uçlar ---------------------------------------------------------
 
@@ -210,7 +235,10 @@ class ReportViewSet(viewsets.ModelViewSet):
 
 
 class ReportMediaViewSet(mixins.DestroyModelMixin, viewsets.GenericViewSet):
-    queryset = ReportMedia.objects.select_related("report")
+    def get_queryset(self):
+        # FR-06: Geri çekilen kaydın dosyaları 404 döner. FR-16: Gizlenen kayda yalnızca Admin erişir.
+        qs = ReportMedia.objects.select_related("report").filter(report__is_withdrawn=False)
+        return qs if self.request.user.is_admin_role else qs.filter(report__is_removed=False)
 
     def perform_destroy(self, instance):
         user = self.request.user

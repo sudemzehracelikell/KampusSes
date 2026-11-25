@@ -148,6 +148,14 @@ CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:3000,h
 # E-posta bildirimleri: geliştirmede konsola yazılır.
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "kampusses@localhost")
+# Gerçek gönderim için SMTP ayarları (FR-13). Şifre koda yazılmaz, yalnızca .env'den okunur (NFR-13).
+EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "25"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", False)
+# NFR-14: E-posta sunucusu yanıt vermezse istek en fazla bu kadar bekler; sonra yeniden deneme devreye girer.
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
 
 # İş kuralları
 # Boş bırakılırsa her e-posta alan adı kabul edilir. Örn: "istun.edu.tr"

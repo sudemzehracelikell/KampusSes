@@ -15,7 +15,8 @@ from .serializers import CommentSerializer
 
 
 def _visible_report(pk):
-    return get_object_or_404(Report, pk=pk, is_removed=False)
+    # Gizlenen (FR-16) ve geri çekilen (FR-06) kayıtta destek ve yorum yapılamaz.
+    return get_object_or_404(Report, pk=pk, is_removed=False, is_withdrawn=False)
 
 
 def _ensure_open(report, action):
@@ -56,7 +57,9 @@ class CommentListCreateView(ListCreateAPIView):
         return [AllowAny()] if self.request.method == "GET" else [IsAuthenticated()]
 
     def get_queryset(self):
-        return Comment.objects.filter(report_id=self.kwargs["report_pk"], report__is_removed=False).select_related("user")
+        return Comment.objects.filter(
+            report_id=self.kwargs["report_pk"], report__is_removed=False, report__is_withdrawn=False
+        ).select_related("user")
 
     def perform_create(self, serializer):
         report = _visible_report(self.kwargs["report_pk"])
@@ -66,7 +69,10 @@ class CommentListCreateView(ListCreateAPIView):
 
 
 class CommentDeleteView(DestroyAPIView):
-    queryset = Comment.objects.all()
+    def get_queryset(self):
+        # FR-06: Geri çekilen kaydın yorumları silinemez. FR-16: Gizlenen kayda yalnızca Admin erişir.
+        qs = Comment.objects.filter(report__is_withdrawn=False)
+        return qs if self.request.user.is_admin_role else qs.filter(report__is_removed=False)
 
     def perform_destroy(self, instance):
         user = self.request.user

@@ -76,6 +76,11 @@ class Report(models.Model):
     )
     status = models.CharField("durum", max_length=20, choices=ReportStatus.choices, default=ReportStatus.NEW)
     is_removed = models.BooleanField("kaldırıldı", default=False, help_text="Admin tarafından uygunsuz bulunup gizlendi")
+    # FR-06: Geri çekilen bildirim silinmez; listeden kalkar, durum geçmişi saklanır.
+    is_withdrawn = models.BooleanField(
+        "geri çekildi", default=False, help_text="Bildirim sahibi tarafından geri çekildi"
+    )
+    withdrawn_at = models.DateTimeField("geri çekilme zamanı", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -132,3 +137,37 @@ class StatusUpdate(models.Model):
         ordering = ["created_at"]
         verbose_name = "durum güncellemesi"
         verbose_name_plural = "durum güncellemeleri"
+
+
+class EmailStatus(models.TextChoices):
+    PENDING = "PENDING", "Gönderilecek"
+    SENT = "SENT", "Gönderildi"
+    FAILED = "FAILED", "Başarısız"
+
+
+class EmailNotification(models.Model):
+    """
+    Durum değişikliği e-postası (FR-13, NFR-14). Her alıcı için ayrı kayıt tutulur;
+    gönderilemeyen e-posta 1, 5 ve 15 dakika sonra yeniden denenir. Son deneme de
+    başarısız olursa kayıt "Başarısız" olur ve Admin panelinde görünür.
+    """
+
+    report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name="email_notifications")
+    recipient = models.EmailField("alıcı")
+    subject = models.CharField("konu", max_length=255)
+    body = models.TextField("ileti")
+    status = models.CharField("durum", max_length=10, choices=EmailStatus.choices, default=EmailStatus.PENDING)
+    attempts = models.PositiveSmallIntegerField("deneme sayısı", default=0)
+    next_attempt_at = models.DateTimeField("sonraki deneme", null=True, blank=True)
+    last_error = models.TextField("son hata", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField("gönderilme zamanı", null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "e-posta bildirimi"
+        verbose_name_plural = "e-posta bildirimleri"
+        indexes = [models.Index(fields=["status", "next_attempt_at"])]
+
+    def __str__(self):
+        return f"#{self.report_id} → {self.recipient} ({self.get_status_display()})"

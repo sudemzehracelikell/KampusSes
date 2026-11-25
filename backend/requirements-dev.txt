@@ -1,0 +1,8 @@
+# Geliştirici ve kalite araçları (uygulamanın çalışması için gerekmez).
+# Kurulum: pip install -r requirements-dev.txt
+# Kullanım: python kalite_kontrol.py
+-r requirements.txt
+coverage==7.17.5    # NFR-05a, K3: test kapsamı
+ruff==0.17.6        # NFR-05b, K4: kod hataları ve McCabe karmaşıklığı
+bandit==1.9.4       # K4: Python kodunda güvenlik açığı taraması (SAST)
+pip-audit==2.10.1   # K4: kullanılan paketlerde bilinen güvenlik açığı taraması

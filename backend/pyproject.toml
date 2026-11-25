@@ -1,0 +1,39 @@
+# KampüsSes — kalite araçlarının ayarları (K3 ve K4 kalite kapıları).
+# Araçlar requirements-dev.txt ile kurulur; tümü kalite_kontrol.py ile birlikte çalıştırılır.
+
+[tool.ruff]
+# Faz 2 raporu, K4: Ruff hatası 0.
+line-length = 120
+target-version = "py312"
+extend-exclude = ["venv", "*/migrations/*"]
+
+[tool.ruff.lint]
+# E/W: yazım hataları, F: hatalı/kullanılmayan kod, C90: McCabe karmaşıklığı.
+select = ["E", "W", "F", "C90"]
+
+[tool.ruff.lint.mccabe]
+# NFR-05b: iş mantığı fonksiyonu başına McCabe karmaşıklığı en fazla 10.
+max-complexity = 10
+
+[tool.coverage.run]
+# NFR-05a: backend satır kapsamı. Testler, migration'lar ve Django'nun hazır dosyaları sayılmaz.
+source = ["."]
+omit = [
+    "venv/*",
+    "*/migrations/*",
+    "*/tests.py",
+    "manage.py",
+    "config/asgi.py",
+    "config/wsgi.py",
+    "kalite_kontrol.py",
+]
+
+[tool.coverage.report]
+# NFR-05a ve K5: backend satır kapsamı en az %70.
+fail_under = 70
+show_missing = true
+skip_covered = false
+
+[tool.bandit]
+# Güvenlik taraması (K4). Proje dışındaki paketler (venv) taranmaz.
+exclude_dirs = ["venv", "migrations"]

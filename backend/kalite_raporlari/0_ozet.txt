@@ -1,0 +1,14 @@
+KampüsSes kalite kontrolü
+Tarih   : 2026-11-25 15:00
+Commit  : 154c930 (kaydedilmemiş değişiklikler dahil olabilir)
+Python  : 3.14.0 · Windows 11
+
+[GEÇTİ] K3 · Testler: Ran 76 tests in 322.763s
+[GEÇTİ] K3 · NFR-05a Test kapsamı: toplam satır kapsamı %90 (hedef en az %70)
+[KALDI] K4 · Ruff: 40 bulgu (hedef 0)
+[KALDI] K4 · NFR-05b McCabe karmaşıklığı: karmaşıklığı 10'u aşan 1 fonksiyon (hedef 0)
+[GEÇTİ] K4 · Bandit güvenlik taraması: yüksek 0, orta 1, düşük 31 (hedef: yüksek 0)
+[KALDI] K4 · pip-audit paket açıkları: 68 bilinen açık; etkilenen paketler: django, djangorestframework, pip (hedef 0)
+
+SONUÇ: 3 kapı kaldı.
+Ayrıntılar: backend/kalite_raporlari/ klasörü

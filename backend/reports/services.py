@@ -4,12 +4,12 @@ tutulduğu için hem test etmesi hem de değiştirmesi kolaydır.
 """
 import logging
 
-from django.conf import settings
-from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Avg, Count, ExpressionWrapper, F, FloatField, Value
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 
+from . import notifications
 from .models import Report, ReportStatus, StatusUpdate
 
 logger = logging.getLogger(__name__)
@@ -72,6 +72,7 @@ def find_similar(category_id, location, exclude_id=None, limit=5):
         category_id=category_id,
         location__icontains=location.strip()[:50],
         is_removed=False,
+        is_withdrawn=False,
     ).exclude(status__in=ReportStatus.closed())
     if exclude_id:
         qs = qs.exclude(pk=exclude_id)
@@ -107,6 +108,7 @@ def create_report(user, *, tags=None, **fields):
 def change_status(report, user, new_status, note):
     """Durum geçişini doğrular, kaydeder ve ilgilileri bilgilendirir (FR-12, FR-13)."""
     report = Report.objects.select_for_update().get(pk=report.pk)
+    _ensure_active(report, user)
     if not note or not note.strip():
         raise BusinessRuleError("Durum değişikliği için açıklama yazılmalıdır.")
     if not can_transition(report.status, new_status):
@@ -127,10 +129,66 @@ def change_status(report, user, new_status, note):
     return report
 
 
+def _ensure_active(report, user):
+    """
+    Kilit altında son kontrol. FR-06: geri çekilen kayıt salt okunurdur.
+    FR-16: Admin'in gizlediği kayıtta yalnızca Admin işlem yapabilir.
+    """
+    if report.is_withdrawn:
+        raise BusinessRuleError("Geri çekilmiş bir bildirim üzerinde işlem yapılamaz.")
+    if report.is_removed and not (user and user.is_admin_role):
+        raise BusinessRuleError("Gizlenmiş bir bildirim üzerinde işlem yapılamaz.")
+
+
+@transaction.atomic
+def update_report(report, user, *, tags=None, **fields):
+    """
+    Bildirimi düzenler (FR-06). Kayıt kilit altında yeniden okunur ve yalnızca değişen
+    alanlar yazılır; böylece aynı anda yapılan geri çekme veya durum değişikliği ezilmez.
+    """
+    report = Report.objects.select_for_update().get(pk=report.pk)
+    _ensure_active(report, user)
+    if not user.is_admin_role and report.status not in ReportStatus.editable_by_owner():
+        raise BusinessRuleError("Birim işleme başladıktan sonra bildirim değiştirilemez.")
+    for field, value in fields.items():
+        setattr(report, field, value)
+    if fields or tags is not None:  # Yalnızca etiket değişse de güncellenme zamanı yazılır.
+        report.save(update_fields=[*fields, "updated_at"])
+    if tags is not None:
+        report.tags.set(tags)
+    return report
+
+
+@transaction.atomic
+def withdraw_report(report, user):
+    """
+    Bildirimi sahibi adına geri çeker (FR-06). Kayıt silinmez: listeden kalkar,
+    durum geçmişi saklanır ve geri çekme de geçmişe yazılır.
+    """
+    report = Report.objects.select_for_update().get(pk=report.pk)
+    _ensure_active(report, user)
+    # Yetki view'da kontrol edildi; durum o arada değişmiş olabileceği için kilit altında tekrar bakılır.
+    if report.status not in ReportStatus.editable_by_owner():
+        raise BusinessRuleError("Birim işleme başladıktan sonra bildirim geri çekilemez.")
+    report.is_withdrawn = True
+    report.withdrawn_at = timezone.now()
+    report.save(update_fields=["is_withdrawn", "withdrawn_at", "updated_at"])
+    StatusUpdate.objects.create(
+        report=report,
+        user=user,
+        old_status=report.status,
+        new_status=report.status,
+        unit=report.assigned_unit,
+        note="Bildirim, sahibi tarafından geri çekildi.",
+    )
+    return report
+
+
 @transaction.atomic
 def reassign(report, user, unit, note):
     """Bildirimi başka bir birime aktarır (UC-05, alternatif akış 2a)."""
     report = Report.objects.select_for_update().get(pk=report.pk)
+    _ensure_active(report, user)
     if report.is_closed:
         raise BusinessRuleError("Kapanmış bir bildirim yeniden atanamaz.")
     if report.assigned_unit_id == unit.pk:
@@ -151,18 +209,11 @@ def reassign(report, user, unit, note):
 
 
 def notify_status_change(report, new_status, note):
-    recipients = {report.created_by.email}
-    recipients.update(report.supports.select_related("user").values_list("user__email", flat=True))
-    recipients.discard("")
-    if not recipients:
-        return
+    """
+    E-postalar durum değişikliği veritabanına yazıldıktan sonra gönderilir (on_commit);
+    gönderim hatası değişikliği geri almaz. Ayrıntılar: notifications.py (FR-13, NFR-14).
+    """
     try:
-        send_mail(
-            subject=f"[KampüsSes] #{report.pk} bildiriminin durumu: {ReportStatus(new_status).label}",
-            message=f"'{report.title}' bildiriminin durumu '{ReportStatus(new_status).label}' oldu.\n\nAçıklama: {note}",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=sorted(recipients),
-            fail_silently=False,
-        )
-    except Exception:  # E-posta gönderilemese bile durum değişikliği geri alınmaz.
-        logger.exception("Durum bildirimi e-postası gönderilemedi (rapor #%s)", report.pk)
+        notifications.notify_status_change(report, new_status, note)
+    except Exception:  # Kayıt oluşturulamasa bile durum değişikliği geri alınmaz.
+        logger.exception("Durum bildirimi e-postaları hazırlanamadı (rapor #%s)", report.pk)
