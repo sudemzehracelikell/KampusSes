@@ -17,7 +17,8 @@ class UnitSerializer(serializers.ModelSerializer):
     def get_open_report_count(self, obj):
         from reports.models import ReportStatus
 
-        return obj.reports.filter(is_removed=False).exclude(status__in=ReportStatus.closed()).count()
+        reports = obj.reports.filter(is_removed=False, is_withdrawn=False)
+        return reports.exclude(status__in=ReportStatus.closed()).count()
 
 
 class MemberSerializer(serializers.Serializer):

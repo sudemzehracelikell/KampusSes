@@ -1,0 +1,349 @@
+Run started:2026-11-25 12:06:24.660688+00:00
+
+Test results:
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'Guclu.Parola1'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\accounts\tests.py:14:20
+13	        self.client = APIClient()
+14	        self.user = User.objects.create_user(username="ayse", email="ayse@test.edu", password="Guclu.Parola1")
+15	
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'Baska.Parola9'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: .\accounts\tests.py:23:63
+22	            "/api/auth/register/",
+23	            {"username": "mehmet", "email": "Mehmet@Test.edu", "password": "Baska.Parola9", "role": "ADMIN"},
+24	            format="json",
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: '12345678'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: .\accounts\tests.py:32:96
+31	    def test_register_rejects_weak_password_and_duplicate_email(self):
+32	        weak = self.client.post("/api/auth/register/", {"username": "x", "email": "x@test.edu", "password": "12345678"}, format="json")
+33	        self.assertEqual(weak.status_code, 400)
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'Guclu.Parola2'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: .\accounts\tests.py:34:98
+33	        self.assertEqual(weak.status_code, 400)
+34	        dup = self.client.post("/api/auth/register/", {"username": "y", "email": "AYSE@test.edu", "password": "Guclu.Parola2"}, format="json")
+35	        self.assertEqual(dup.status_code, 400)
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'Guclu.Parola3'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: .\accounts\tests.py:39:96
+38	    def test_register_enforces_university_domain(self):
+39	        res = self.client.post("/api/auth/register/", {"username": "z", "email": "z@gmail.com", "password": "Guclu.Parola3"}, format="json")
+40	        self.assertEqual(res.status_code, 400)
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'Guclu.Parola3'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: .\accounts\tests.py:45:67
+44	            "/api/auth/register/",
+45	            {"username": "zeynep", "email": "zeynep@istun.edu.tr", "password": "Guclu.Parola3"},
+46	            format="json",
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'Guclu.Parola1'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: .\accounts\tests.py:51:77
+50	    def test_login_returns_token_and_generic_error(self):
+51	        ok = self.client.post("/api/auth/login/", {"email": "ayse@test.edu", "password": "Guclu.Parola1"}, format="json")
+52	        self.assertEqual(ok.status_code, 200)
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'yanlis'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: .\accounts\tests.py:55:78
+54	        self.assertNotIn("password", ok.data["user"])
+55	        bad = self.client.post("/api/auth/login/", {"email": "ayse@test.edu", "password": "yanlis"}, format="json")
+56	        self.assertEqual(bad.status_code, 400)
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'yanlis'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: .\accounts\tests.py:61:76
+60	        for _ in range(5):
+61	            self.client.post("/api/auth/login/", {"email": "ayse@test.edu", "password": "yanlis"}, format="json")
+62	        res = self.client.post("/api/auth/login/", {"email": "ayse@test.edu", "password": "Guclu.Parola1"}, format="json")
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'Guclu.Parola1'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: .\accounts\tests.py:62:78
+61	            self.client.post("/api/auth/login/", {"email": "ayse@test.edu", "password": "yanlis"}, format="json")
+62	        res = self.client.post("/api/auth/login/", {"email": "ayse@test.edu", "password": "Guclu.Parola1"}, format="json")
+63	        self.assertEqual(res.status_code, 429)
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\accounts\tests.py:74:21
+73	        self.client = APIClient()
+74	        self.admin = User.objects.create_user(username="admin", email="admin@test.edu", password="x", role=Role.ADMIN)
+75	        self.student = User.objects.create_user(username="ogr", email="ogr@test.edu", password="x")
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\accounts\tests.py:75:23
+74	        self.admin = User.objects.create_user(username="admin", email="admin@test.edu", password="x", role=Role.ADMIN)
+75	        self.student = User.objects.create_user(username="ogr", email="ogr@test.edu", password="x")
+76	
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\interactions\tests.py:64:21
+63	        super().setUp()
+64	        self.board = User.objects.create_user(username="kurul", email="kurul@test.edu", password="x", role=Role.BOARD_MEMBER)
+65	
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'Kampus.2026'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: .\reports\management\commands\seed_demo.py:16:16
+15	
+16	DEMO_PASSWORD = "Kampus.2026"
+17	
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\reports\tests.py:24:23
+23	        self.client = APIClient()
+24	        self.student = User.objects.create_user(username="ogr", email="ogr@test.edu", password="x")
+25	        self.other = User.objects.create_user(username="ogr2", email="ogr2@test.edu", password="x")
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\reports\tests.py:25:21
+24	        self.student = User.objects.create_user(username="ogr", email="ogr@test.edu", password="x")
+25	        self.other = User.objects.create_user(username="ogr2", email="ogr2@test.edu", password="x")
+26	        self.manager = User.objects.create_user(username="bim", email="bim@test.edu", password="x", role=Role.UNIT_MANAGER)
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\reports\tests.py:26:23
+25	        self.other = User.objects.create_user(username="ogr2", email="ogr2@test.edu", password="x")
+26	        self.manager = User.objects.create_user(username="bim", email="bim@test.edu", password="x", role=Role.UNIT_MANAGER)
+27	        self.other_manager = User.objects.create_user(username="yim", email="yim@test.edu", password="x", role=Role.UNIT_MANAGER)
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\reports\tests.py:27:29
+26	        self.manager = User.objects.create_user(username="bim", email="bim@test.edu", password="x", role=Role.UNIT_MANAGER)
+27	        self.other_manager = User.objects.create_user(username="yim", email="yim@test.edu", password="x", role=Role.UNIT_MANAGER)
+28	        self.admin = User.objects.create_user(username="adm", email="adm@test.edu", password="x", role=Role.ADMIN)
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\reports\tests.py:28:21
+27	        self.other_manager = User.objects.create_user(username="yim", email="yim@test.edu", password="x", role=Role.UNIT_MANAGER)
+28	        self.admin = User.objects.create_user(username="adm", email="adm@test.edu", password="x", role=Role.ADMIN)
+29	        self.it = Unit.objects.create(name="Bilgi İşlem")
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\reports\tests.py:193:16
+192	        self.assertEqual(res.status_code, 404)
+193	        board = User.objects.create_user(username="kurul", email="kurul@test.edu", password="x", role=Role.BOARD_MEMBER)
+194	        self.client.force_authenticate(board)
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\reports\tests.py:378:16
+377	        high = self.create(title="Yüksek öncelikli sorun")
+378	        board = User.objects.create_user(username="kurul", email="kurul@test.edu", password="x", role=Role.BOARD_MEMBER)
+379	        Assessment.objects.create(report=high, reviewer=board, urgency=5, impact=5)
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\reports\tests.py:392:20
+391	            board = User.objects.create_user(
+392	                username=f"kurul{i}", email=f"kurul{i}@test.edu", password="x", role=Role.BOARD_MEMBER
+393	            )
+394	            Assessment.objects.create(report=report, reviewer=board, urgency=urgency, impact=impact)
+395	        supporters = [User(username=f"d{i}", email=f"d{i}@test.edu") for i in range(20)]
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\reports\tests.py:426:16
+425	        self.assertEqual(self.ranking(), [(newer.pk, 1.0), (older.pk, 0.0)])
+426	        board = User.objects.create_user(username="kurul", email="kurul@test.edu", password="x", role=Role.BOARD_MEMBER)
+427	        self.client.force_authenticate(board)
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\reports\tests.py:440:16
+439	        newer = self.create(title="Destekli bildirim")
+440	        board = User.objects.create_user(username="kurul", email="kurul@test.edu", password="x", role=Role.BOARD_MEMBER)
+441	        Assessment.objects.create(report=older, reviewer=board, urgency=1, impact=1)
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\reports\tests.py:453:16
+452	        self.assertEqual(res.data["board_score"], 0)
+453	        board = User.objects.create_user(username="kurul", email="kurul@test.edu", password="x", role=Role.BOARD_MEMBER)
+454	        Assessment.objects.create(report=report, reviewer=board, urgency=1, impact=1)
+
+--------------------------------------------------
+>> Issue: [B108:hardcoded_tmp_directory] Probable insecure usage of temp file/directory.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-377 (https://cwe.mitre.org/data/definitions/377.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b108_hardcoded_tmp_directory.html
+   Location: .\reports\tests.py:461:34
+460	class MediaTests(BaseReportTest):
+461	    @override_settings(MEDIA_ROOT="/tmp/kampusses-test-media")
+462	    def test_upload_rules(self):
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\reports\tests.py:494:15
+493	        # Aynı adres farklı yazılsa da tek e-posta gider.
+494	        twin = User.objects.create_user(username="ikiz", email="OGR2@test.edu ", password="x")
+495	        Support.objects.create(report=report, user=twin)
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\reports\tests.py:600:16
+599	        Support.objects.create(report=report, user=self.student)  # Bildiren kendi kaydını destekledi.
+600	        blank = User.objects.create_user(username="bos", email="", password="x")
+601	        Support.objects.create(report=report, user=blank)
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\reports\tests.py:636:16
+635	    def test_assessment_not_readable_after_withdraw_or_hide(self):
+636	        board = User.objects.create_user(username="kurul", email="kurul@test.edu", password="x", role=Role.BOARD_MEMBER)
+637	        withdrawn = self.create()
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\units\tests.py:12:21
+11	        self.client = APIClient()
+12	        self.admin = User.objects.create_user(username="adm", email="adm@test.edu", password="x", role=Role.ADMIN)
+13	        self.student = User.objects.create_user(username="ogr", email="ogr@test.edu", password="x")
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\units\tests.py:13:23
+12	        self.admin = User.objects.create_user(username="adm", email="adm@test.edu", password="x", role=Role.ADMIN)
+13	        self.student = User.objects.create_user(username="ogr", email="ogr@test.edu", password="x")
+14	        self.manager = User.objects.create_user(username="bim", email="bim@test.edu", password="x", role=Role.UNIT_MANAGER)
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'x'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b106_hardcoded_password_funcarg.html
+   Location: .\units\tests.py:14:23
+13	        self.student = User.objects.create_user(username="ogr", email="ogr@test.edu", password="x")
+14	        self.manager = User.objects.create_user(username="bim", email="bim@test.edu", password="x", role=Role.UNIT_MANAGER)
+15	        self.unit = Unit.objects.create(name="Bilgi İşlem")
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 2456
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 2
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 31
+		Medium: 1
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 32
+		High: 0
+Files skipped (0):
+[main]	INFO	profile include tests: None
+[main]	INFO	profile exclude tests: None
+[main]	INFO	cli include tests: None
+[main]	INFO	cli exclude tests: None
+[main]	INFO	using config: pyproject.toml
+[main]	INFO	running on Python 3.14.0

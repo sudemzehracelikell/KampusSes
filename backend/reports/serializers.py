@@ -59,14 +59,20 @@ class ReportListSerializer(serializers.ModelSerializer):
     comment_count = serializers.IntegerField(read_only=True, default=0)
     board_score = serializers.FloatField(read_only=True, default=0)
     priority_score = serializers.FloatField(read_only=True, default=0)
+    awaiting_assessment = serializers.SerializerMethodField()
 
     class Meta:
         model = Report
         fields = [
             "id", "title", "description", "location", "category", "tags", "status", "status_display",
             "assigned_unit", "created_by", "support_count", "comment_count", "board_score",
-            "priority_score", "created_at", "updated_at",
+            "priority_score", "awaiting_assessment", "created_at", "updated_at",
         ]
+
+    def get_awaiting_assessment(self, obj):
+        """FR-15: Kurul puanı olmayan kayıtta ortalama 0 alınır ve 'Değerlendirme bekliyor' gösterilir."""
+        # Puanlar 1–5 arası olduğundan ortalamanın 0 olması hiç puan verilmediği anlamına gelir.
+        return not getattr(obj, "board_score", 0)
 
 
 class ReportDetailSerializer(ReportListSerializer):
@@ -76,7 +82,9 @@ class ReportDetailSerializer(ReportListSerializer):
     has_supported = serializers.SerializerMethodField()
 
     class Meta(ReportListSerializer.Meta):
-        fields = ReportListSerializer.Meta.fields + ["media", "status_updates", "permissions", "has_supported"]
+        fields = ReportListSerializer.Meta.fields + [
+            "media", "status_updates", "permissions", "has_supported", "is_withdrawn", "withdrawn_at",
+        ]
 
     def _user(self):
         request = self.context.get("request")
@@ -93,12 +101,15 @@ class ReportDetailSerializer(ReportListSerializer):
         from .services import ALLOWED_TRANSITIONS, user_manages_report
 
         user = self._user()
-        authed = bool(user and user.is_authenticated)
+        # FR-06: Geri çekilen kayıt yalnızca okunur; hiçbir işlem butonu gösterilmez.
+        authed = bool(user and user.is_authenticated) and not obj.is_withdrawn
         is_owner = authed and obj.created_by_id == user.pk
         manages = authed and user_manages_report(user, obj)
         return {
             "can_edit": bool(is_owner and obj.status in ReportStatus.editable_by_owner()) or (authed and user.is_admin_role),
-            "can_delete": bool(is_owner and obj.status in ReportStatus.editable_by_owner()) or (authed and user.is_admin_role),
+            # Sahibi (Admin dahil) yalnızca Yeni/Atandı kaydını geri çeker; Admin başkasının kaydını gizler.
+            "can_delete": bool(is_owner and obj.status in ReportStatus.editable_by_owner())
+            or bool(authed and user.is_admin_role and not is_owner),
             "can_manage": bool(manages and not obj.is_closed),
             "allowed_transitions": sorted(ALLOWED_TRANSITIONS[obj.status]) if manages else [],
             "can_support": bool(authed and not obj.is_closed),

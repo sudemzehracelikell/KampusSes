@@ -34,6 +34,11 @@ python manage.py seed_demo    # demo kullanıcıları ve örnek bildirimler
 python manage.py runserver
 ```
 
+**Windows notları (PowerShell):**
+- `python` komutu tanınmazsa `py` yazın (örn. `py -m venv venv`).
+- `activate` betiği "running scripts is disabled" hatası verirse ortamı etkinleştirmeden çalışabilirsiniz: `venv\Scripts\python manage.py runserver` gibi her komutun başına `venv\Scripts\python` yazın (`pip` için: `venv\Scripts\python -m pip install -r requirements.txt`).
+- `.env` dosyası olmadan backend açılmaz (DEBUG kapalıyken SECRET_KEY zorunludur); `copy .env.example .env` adımını atlamayın.
+
 ### 2. Frontend (http://localhost:3000)
 
 Backend açıkken ikinci bir terminalde:
@@ -44,7 +49,20 @@ npm install
 npm start
 ```
 
+Windows PowerShell'de `npm` "running scripts is disabled" hatası verirse `npm.cmd install` ve `npm.cmd start` yazın.
+
 Tarayıcıda http://localhost:3000 adresini açın.
+
+### 3. E-posta yeniden deneme (NFR-14, isteğe bağlı)
+
+Durum değişikliği e-postası gönderilemezse 1, 5 ve 15 dakika sonra yeniden denenir. Denemeleri yapan komutu üçüncü bir terminalde çalıştırın (veya zamanlanmış görev olarak her dakika çalıştırın):
+
+```bash
+cd backend
+python manage.py retry_emails --loop
+```
+
+Son denemede de gönderilemeyen e-postalar Django yönetim panelinde "E-posta bildirimleri" altında "Başarısız" olarak görünür.
 
 ### Demo kullanıcıları
 
@@ -62,12 +80,26 @@ Django yönetim paneli: http://localhost:8000/admin/ (Admin hesabıyla).
 
 ## Testler
 
+`.env` dosyası oluşturulmuş olmalıdır (bkz. Kurulum). Testler kendi geçici veritabanını kullanır; açık olan siteyi etkilemez, sunucuları kapatmanız gerekmez.
+
 ```bash
 cd backend
 python manage.py test
 ```
 
-38 test bulunur: kimlik doğrulama, yetkiler, durum geçişleri, destek, yorum, önceliklendirme ve dosya yükleme kuralları.
+76 test bulunur: kimlik doğrulama, yetkiler, durum geçişleri, geri çekme, destek, yorum, önceliklendirme, e-posta bildirimleri ve dosya yükleme kuralları.
+
+## Kalite kontrolü (K3 ve K4 kalite kapıları)
+
+Testleri, test kapsamını (coverage), kod kontrolünü ve karmaşıklığı (Ruff), güvenlik taramasını (Bandit) ve paket açıklarını (pip-audit) tek komutla çalıştırır:
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+python kalite_kontrol.py
+```
+
+Her kapı için GEÇTİ / KALDI özeti ekrana yazılır. Ayrıntılı raporlar `backend/kalite_raporlari/` klasörüne kaydedilir. Eşikler `backend/pyproject.toml` dosyasındadır.
 
 ## Roller
 

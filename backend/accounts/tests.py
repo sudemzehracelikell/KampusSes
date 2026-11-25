@@ -5,6 +5,8 @@ from rest_framework.test import APIClient
 from accounts.models import Role, User
 
 
+# Testler .env'deki alan adı ayarından bağımsız çalışır; alan adı kuralı kendi testinde ayrıca açılır.
+@override_settings(ALLOWED_EMAIL_DOMAINS=[])
 class AuthTests(TestCase):
     def setUp(self):
         cache.clear()
@@ -37,6 +39,13 @@ class AuthTests(TestCase):
         res = self.client.post("/api/auth/register/", {"username": "z", "email": "z@gmail.com", "password": "Guclu.Parola3"}, format="json")
         self.assertEqual(res.status_code, 400)
         self.assertIn("email", res.data)
+        # FR-01: Üniversite adresiyle kayıt kabul edilir.
+        ok = self.client.post(
+            "/api/auth/register/",
+            {"username": "zeynep", "email": "zeynep@istun.edu.tr", "password": "Guclu.Parola3"},
+            format="json",
+        )
+        self.assertEqual(ok.status_code, 201)
 
     def test_login_returns_token_and_generic_error(self):
         ok = self.client.post("/api/auth/login/", {"email": "ayse@test.edu", "password": "Guclu.Parola1"}, format="json")

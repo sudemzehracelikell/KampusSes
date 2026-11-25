@@ -29,13 +29,15 @@ class AssessmentView(APIView):
     permission_classes = [IsBoardMember]
 
     def get(self, request, report_pk):
+        # Gizlenen (FR-16) veya geri çekilen (FR-06) kaydın puanı da okunamaz (404).
+        get_object_or_404(Report, pk=report_pk, is_removed=False, is_withdrawn=False)
         assessment = Assessment.objects.filter(report_id=report_pk, reviewer=request.user).first()
         if not assessment:
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(AssessmentSerializer(assessment).data)
 
     def put(self, request, report_pk):
-        report = get_object_or_404(Report, pk=report_pk, is_removed=False)
+        report = get_object_or_404(Report, pk=report_pk, is_removed=False, is_withdrawn=False)
         if report.is_closed:
             raise PermissionDenied("Kapanmış bildirimler değerlendirilemez.")
         serializer = AssessmentSerializer(data=request.data)

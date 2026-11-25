@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Category, Report, ReportMedia, StatusUpdate, Tag
+from .models import Category, EmailNotification, Report, ReportMedia, StatusUpdate, Tag
 
 
 class ReportMediaInline(admin.TabularInline):
@@ -17,8 +17,10 @@ class StatusUpdateInline(admin.TabularInline):
 
 @admin.register(Report)
 class ReportAdmin(admin.ModelAdmin):
-    list_display = ("id", "title", "category", "status", "assigned_unit", "created_by", "is_removed", "created_at")
-    list_filter = ("status", "category", "assigned_unit", "is_removed")
+    list_display = (
+        "id", "title", "category", "status", "assigned_unit", "created_by", "is_removed", "is_withdrawn", "created_at",
+    )
+    list_filter = ("status", "category", "assigned_unit", "is_removed", "is_withdrawn")
     search_fields = ("title", "description", "location")
     inlines = [ReportMediaInline, StatusUpdateInline]
 
@@ -29,3 +31,22 @@ class CategoryAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Tag)
+
+
+@admin.register(EmailNotification)
+class EmailNotificationAdmin(admin.ModelAdmin):
+    """NFR-14: Son denemede de gönderilemeyen e-postalar burada yetkiliye görünür."""
+
+    list_display = (
+        "report", "recipient", "status", "attempts", "short_error", "next_attempt_at", "sent_at", "created_at",
+    )
+    list_filter = ("status",)
+    search_fields = ("recipient", "subject")
+    readonly_fields = [field.name for field in EmailNotification._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    @admin.display(description="son hata")
+    def short_error(self, obj):
+        return obj.last_error[:80]
