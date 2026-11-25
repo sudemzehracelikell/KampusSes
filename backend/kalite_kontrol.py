@@ -148,7 +148,8 @@ def main():
 
     lines.append("")
     lines.append("SONUÇ: " + ("Tüm kapılar geçti." if not failed else f"{failed} kapı kaldı."))
-    lines.append(f"Ayrıntılar: {REPORT_DIR}")
+    # Bilgisayardaki tam yol (kullanıcı adı dahil) rapora yazılmaz.
+    lines.append(f"Ayrıntılar: backend/{REPORT_DIR.name}/ klasörü")
     print("\n" + "\n".join(lines))
     save("0_ozet.txt", "\n".join(header + lines) + "\n")
     return 1 if failed else 0

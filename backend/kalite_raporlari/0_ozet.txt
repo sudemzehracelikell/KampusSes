@@ -11,4 +11,4 @@ Python  : 3.14.0 · Windows 11
 [KALDI] K4 · pip-audit paket açıkları: 68 bilinen açık; etkilenen paketler: django, djangorestframework, pip (hedef 0)
 
 SONUÇ: 3 kapı kaldı.
-Ayrıntılar: C:\Users\Myshtigo\Desktop\Kampüs ses\KampusSes\backend\kalite_raporlari
+Ayrıntılar: backend/kalite_raporlari/ klasörü
